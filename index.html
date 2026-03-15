@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ChurnIQ — Tata Play Intelligence Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080a0e;--bg2:#0d1017;--bg3:#131720;--bg4:#1a2030;--bg5:#202638;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.1);--border3:rgba(255,255,255,0.16);
+  --text:#eef0f5;--text2:#8892a8;--text3:#4a5268;--text4:#2e3448;
+  --accent:#4f8ef7;--accent2:#2563eb;--accent-glow:rgba(79,142,247,0.15);
+  --red:#f5534f;--red-bg:rgba(245,83,79,0.1);--red-border:rgba(245,83,79,0.2);
+  --amber:#f5a623;--amber-bg:rgba(245,166,35,0.1);--amber-border:rgba(245,166,35,0.2);
+  --green:#34d399;--green-bg:rgba(52,211,153,0.1);--green-border:rgba(52,211,153,0.2);
+  --blue-bg:rgba(79,142,247,0.1);--blue-border:rgba(79,142,247,0.2);
+  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+  --sidebar:220px;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* SIDEBAR */
+.sidebar{position:fixed;top:0;left:0;width:var(--sidebar);height:100vh;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100}
+.sb-logo{padding:22px 18px 18px;border-bottom:1px solid var(--border)}
+.sb-logo-row{display:flex;align-items:center;gap:10px;margin-bottom:5px}
+.sb-icon{width:34px;height:34px;background:var(--accent);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-icon svg{width:18px;height:18px;stroke:white;fill:none;stroke-width:2}
+.sb-name{font-size:15px;font-weight:600;color:var(--text);letter-spacing:-0.4px}
+.sb-tag{font-size:10px;color:var(--text3);font-family:var(--mono);letter-spacing:0.5px}
+.sb-nav{padding:14px 10px;flex:1;overflow-y:auto}
+.nav-section{font-size:10px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;padding:0 8px;margin:14px 0 6px}
+.nav-section:first-child{margin-top:0}
+.ni{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--text2);transition:all .15s;margin-bottom:2px;border:1px solid transparent;user-select:none}
+.ni:hover{background:var(--bg3);color:var(--text)}
+.ni.active{background:var(--accent-glow);color:var(--accent);border-color:var(--blue-border)}
+.ni svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;flex-shrink:0}
+.ni-badge{margin-left:auto;font-size:10px;background:var(--red);color:white;border-radius:99px;padding:1px 6px;font-weight:600;font-family:var(--mono)}
+.ni-badge.b{background:var(--accent)}
+.ni-badge.g{background:var(--green);color:#080a0e}
+.sb-footer{padding:14px 18px;border-top:1px solid var(--border)}
+.built-tag{font-size:11px;color:var(--text3);line-height:1.7}
+.built-tag strong{color:var(--text2);font-weight:500}
+
+/* TOPBAR */
+.main{margin-left:var(--sidebar);min-height:100vh}
+.topbar{position:sticky;top:0;background:rgba(8,10,14,0.88);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;justify-content:space-between;z-index:50}
+.tb-left{display:flex;align-items:center;gap:12px}
+.tb-title{font-size:14px;font-weight:500;color:var(--text)}
+.live-pill{display:flex;align-items:center;gap:5px;background:var(--green-bg);border:1px solid var(--green-border);border-radius:99px;padding:3px 10px;font-size:10px;color:var(--green);font-family:var(--mono)}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.tb-right{display:flex;align-items:center;gap:16px}
+.tb-stat{font-size:11px;color:var(--text3);font-family:var(--mono)}
+.tb-stat span{color:var(--text2)}
+
+/* CONTENT */
+.content{padding:26px 28px}
+.view{display:none}
+.view.active{display:block}
+
+/* METRICS */
+.mg{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+.mc{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px 18px 16px;position:relative;overflow:hidden;animation:fadeUp .4s ease both}
+.mc::after{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.mc.ca::after{background:var(--accent)}
+.mc.cr::after{background:var(--red)}
+.mc.cg::after{background:var(--green)}
+.mc.cam::after{background:var(--amber)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.mc:nth-child(1){animation-delay:.05s}.mc:nth-child(2){animation-delay:.1s}.mc:nth-child(3){animation-delay:.15s}.mc:nth-child(4){animation-delay:.2s}
+.ml{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:9px}
+.mv{font-size:26px;font-weight:600;color:var(--text);letter-spacing:-1px;line-height:1;margin-bottom:7px}
+.md{font-size:11px;display:flex;align-items:center;gap:4px;font-family:var(--mono)}
+.md.neg{color:var(--red)}.md.pos{color:var(--green)}.md.neu{color:var(--text3)}
+.ms{font-size:10px;color:var(--text3);margin-top:3px;font-family:var(--mono)}
+
+/* CARDS */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px;animation:fadeUp .35s ease both}
+.card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.card-title{font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.8px}
+.cbadge{font-size:10px;padding:3px 9px;border-radius:99px;font-family:var(--mono)}
+.cbadge.r{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.cbadge.a{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.cbadge.g{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.cbadge.b{background:var(--blue-bg);color:var(--accent);border:1px solid var(--blue-border)}
+
+/* GRID LAYOUTS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.g32{display:grid;grid-template-columns:3fr 2fr;gap:14px;margin-bottom:20px}
+.full{margin-bottom:20px}
+
+/* SEGMENT BARS */
+.seg-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.seg-row:last-child{margin-bottom:0}
+.seg-name{font-size:12px;color:var(--text2);width:150px;flex-shrink:0;line-height:1.3}
+.seg-track{flex:1;height:5px;background:var(--bg5);border-radius:99px;overflow:hidden}
+.seg-fill{height:100%;border-radius:99px;width:0%;transition:width 1.2s cubic-bezier(.4,0,.2,1)}
+.fill-r{background:var(--red)}.fill-a{background:var(--amber)}.fill-g{background:var(--green)}
+.seg-pct{font-size:11px;font-weight:500;width:30px;text-align:right;font-family:var(--mono)}
+.sp-r{color:var(--red)}.sp-a{color:var(--amber)}.sp-g{color:var(--green)}
+
+/* ALERTS */
+.ai{display:flex;gap:12px;padding:13px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:all .15s;border-radius:0;position:relative}
+.ai:first-child{padding-top:0}
+.ai:last-child{border-bottom:none;padding-bottom:0}
+.ai:hover{background:rgba(255,255,255,0.025);margin:0 -12px;padding-left:12px;padding-right:12px;border-radius:8px}
+.a-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:1px;font-weight:700}
+.ic-r{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.ic-a{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.ic-b{background:var(--blue-bg);color:var(--accent);border:1px solid var(--blue-border)}
+.a-body{flex:1;min-width:0}
+.a-title{font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px}
+.a-desc{font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:6px}
+.a-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.a-time{font-size:10px;color:var(--text3);font-family:var(--mono)}
+.chip{font-size:10px;padding:2px 8px;border-radius:99px;font-family:var(--mono);cursor:pointer;transition:all .15s}
+.chip.r{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.chip.a{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-border)}
+.chip.g{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.chip.b{background:var(--blue-bg);color:var(--accent);border:1px solid var(--blue-border)}
+.chip.b:hover{background:rgba(79,142,247,.2)}
+.chip.g:hover{background:rgba(52,211,153,.2)}
+
+/* INTERVENTIONS */
+.int-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px;transition:all .2s;cursor:default}
+.int-card:hover{border-color:var(--border2);background:var(--bg4)}
+.int-ico{font-size:22px;margin-bottom:10px}
+.int-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px}
+.int-val{font-size:17px;font-weight:600;color:var(--text);margin-bottom:7px;letter-spacing:-.4px}
+.int-target{font-size:11px;color:var(--text2);line-height:1.6;margin-bottom:12px}
+.int-btn{font-size:11px;padding:7px 12px;background:var(--blue-bg);color:var(--accent);border:1px solid var(--blue-border);border-radius:7px;cursor:pointer;font-family:var(--font);transition:all .15s;width:100%;text-align:center;display:block}
+.int-btn:hover{background:rgba(79,142,247,.2);border-color:var(--accent)}
+.int-btn.deployed{background:var(--green-bg);color:var(--green);border-color:var(--green-border);pointer-events:none}
+
+/* SIMULATOR */
+.sim-wrap{display:grid;grid-template-columns:1fr 1.2fr;gap:20px}
+.slider-grp{margin-bottom:18px}
+.sl-label{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:8px}
+.sl-label span{color:var(--accent);font-family:var(--mono);font-weight:500}
+input[type=range]{width:100%;height:4px;border-radius:99px;appearance:none;background:var(--bg5);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid var(--bg)}
+input[type=range]:hover::-webkit-slider-thumb{background:#6ba3f9}
+.sim-results{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.sr{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:14px}
+.sr-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px}
+.sr-val{font-size:22px;font-weight:600;letter-spacing:-.8px;transition:color .3s}
+.sr-sub{font-size:11px;color:var(--text2);margin-top:3px}
+.sim-insight{background:var(--bg4);border:1px solid var(--border);border-radius:9px;padding:12px;font-size:12px;color:var(--text2);line-height:1.6;margin-top:12px;border-left:3px solid var(--accent)}
+.sim-insight strong{color:var(--text);font-weight:500}
+
+/* CHAT */
+.chat-outer{background:var(--bg2);border:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column;height:540px}
+.chat-hd{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.chat-hd-l{display:flex;align-items:center;gap:10px}
+.av{width:34px;height:34px;background:var(--accent);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.av-name{font-size:13px;font-weight:500;color:var(--text)}
+.av-status{font-size:11px;color:var(--green);display:flex;align-items:center;gap:4px}
+.av-status::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block}
+.chat-msgs{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth}
+.chat-msgs::-webkit-scrollbar{width:3px}
+.chat-msgs::-webkit-scrollbar-track{background:transparent}
+.chat-msgs::-webkit-scrollbar-thumb{background:var(--bg5);border-radius:99px}
+.msg-row{display:flex;gap:9px;animation:fadeUp .25s ease}
+.msg-row.u{flex-direction:row-reverse}
+.m-av{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;align-self:flex-end;letter-spacing:.3px}
+.m-av.agent{background:var(--accent);color:white}
+.m-av.user{background:var(--bg5);color:var(--text2)}
+.bubble{max-width:78%;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.65}
+.bubble.agent{background:var(--bg3);border:1px solid var(--border);color:var(--text);border-bottom-left-radius:3px}
+.bubble.user{background:var(--accent);color:white;border-bottom-right-radius:3px}
+.bubble.agent ul{margin:6px 0 0 14px;display:flex;flex-direction:column;gap:3px}
+.bubble.agent li{font-size:12px;color:var(--text2)}
+.m-time{font-size:10px;color:var(--text3);margin-top:4px;font-family:var(--mono)}
+.typing-row .bubble.agent{padding:12px 16px}
+.typing-dots{display:flex;gap:4px;align-items:center}
+.tdot{width:6px;height:6px;border-radius:50%;background:var(--text3);animation:tb 1.2s infinite}
+.tdot:nth-child(2){animation-delay:.2s}.tdot:nth-child(3){animation-delay:.4s}
+@keyframes tb{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
+.quick-pills{padding:10px 20px;border-top:1px solid var(--border);display:flex;gap:7px;flex-wrap:wrap}
+.qpill{font-size:11px;padding:5px 11px;border:1px solid var(--border2);border-radius:99px;color:var(--text2);cursor:pointer;transition:all .15s;background:var(--bg3);white-space:nowrap;user-select:none}
+.qpill:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-glow)}
+.chat-input-row{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center}
+.ci{flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:9px 13px;font-size:13px;color:var(--text);font-family:var(--font);outline:none;transition:border-color .15s}
+.ci::placeholder{color:var(--text3)}
+.ci:focus{border-color:var(--accent)}
+.send-btn{width:36px;height:36px;background:var(--accent);border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0}
+.send-btn:hover{background:var(--accent2)}
+.send-btn svg{width:15px;height:15px;stroke:white;fill:none;stroke-width:2}
+
+/* MARKET TABLE */
+.mkt-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.mkt-tbl th{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;text-align:left;padding:0 0 10px;border-bottom:1px solid var(--border)}
+.mkt-tbl th:not(:first-child){text-align:right}
+.mkt-tbl td{padding:11px 0;color:var(--text2);border-bottom:1px solid var(--border)}
+.mkt-tbl td:not(:first-child){text-align:right;font-family:var(--mono);font-size:12px}
+.mkt-tbl tr:last-child td{border-bottom:none}
+.mkt-tbl td.bold{color:var(--text);font-weight:500}
+.mkt-tbl td.acc{color:var(--accent)}
+.tp-row td{color:var(--text)!important;font-weight:500}
+.mkt-bar-wrap{display:flex;align-items:center;justify-content:flex-end;gap:6px}
+.mkt-bar{height:4px;border-radius:99px}
+
+/* INSIGHT BOX */
+.insight-box{padding:12px 14px;background:var(--bg3);border-radius:8px;border-left:3px solid var(--border3);margin-bottom:10px}
+.insight-box:last-child{margin-bottom:0}
+.insight-box.r{border-left-color:var(--red)}
+.insight-box.a{border-left-color:var(--amber)}
+.insight-box.g{border-left-color:var(--green)}
+.ib-title{font-size:12px;font-weight:500;color:var(--text);margin-bottom:4px}
+.ib-text{font-size:11px;color:var(--text2);line-height:1.6}
+
+/* CHART WRAP */
+.cw{position:relative}
+
+/* STATS ROW */
+.stats-row{display:flex;gap:10px;margin-bottom:20px}
+.stat-item{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;flex:1;text-align:center}
+.stat-val{font-size:18px;font-weight:600;color:var(--text);letter-spacing:-.5px}
+.stat-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--bg3);border:1px solid var(--green-border);border-radius:10px;padding:13px 16px;font-size:12px;color:var(--text);z-index:999;transform:translateY(20px);opacity:0;transition:all .3s ease;max-width:290px;min-width:220px}
+.toast.show{transform:translateY(0);opacity:1}
+.toast-title{font-weight:500;color:var(--green);margin-bottom:3px;font-size:13px}
+.toast-body{color:var(--text2);line-height:1.5}
+
+/* LOADER */
+.loader{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;flex-direction:column;gap:18px;transition:opacity .5s}
+.loader.out{opacity:0;pointer-events:none}
+.loader-logo{font-size:24px;font-weight:600;color:var(--text);letter-spacing:-.5px;display:flex;align-items:center;gap:10px}
+.loader-logo span{color:var(--accent)}
+.loader-sub{font-size:12px;color:var(--text3);font-family:var(--mono);text-align:center;line-height:1.8}
+.loader-bar{width:180px;height:2px;background:var(--bg4);border-radius:99px;overflow:hidden}
+.loader-fill{height:100%;background:var(--accent);border-radius:99px;animation:lf 2s ease forwards}
+@keyframes lf{from{width:0}to{width:100%}}
+.loader-dots{display:flex;gap:5px;margin-top:4px}
+.ld{width:5px;height:5px;border-radius:50%;background:var(--text4);animation:ldp 1.2s infinite}
+.ld:nth-child(2){animation-delay:.2s}.ld:nth-child(3){animation-delay:.4s}
+@keyframes ldp{0%,60%,100%{background:var(--text4)}30%{background:var(--accent)}}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bg5);border-radius:99px}
+
+/* NOTIFICATION BADGE PULSE */
+.ni-badge{animation:none}
+.pulse-badge{animation:badgePulse 2s ease infinite}
+@keyframes badgePulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* RISK SCORE RING */
+.risk-ring-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 0}
+.risk-ring{position:relative;width:140px;height:140px;margin:0 auto 12px}
+.risk-ring canvas{position:absolute;top:0;left:0}
+.risk-ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.risk-ring-val{font-size:28px;font-weight:600;color:var(--text);letter-spacing:-1px}
+.risk-ring-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
+.risk-factors{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.rf{background:var(--bg3);border-radius:8px;padding:9px 12px}
+.rf-name{font-size:10px;color:var(--text3);margin-bottom:4px}
+.rf-val{font-size:13px;font-weight:500;color:var(--text)}
+
+/* COMPARISON VIEW */
+.compare-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+.cmp-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;transition:border-color .2s}
+.cmp-card.leader{border-color:var(--blue-border);background:var(--accent-glow)}
+.cmp-name{font-size:11px;font-weight:500;color:var(--text);margin-bottom:10px}
+.cmp-subs{font-size:20px;font-weight:600;color:var(--text);letter-spacing:-.5px;margin-bottom:3px}
+.cmp-share{font-size:11px;font-family:var(--mono);color:var(--text2);margin-bottom:8px}
+.cmp-churn{font-size:13px;font-weight:500}
+.cmp-churn-lbl{font-size:10px;color:var(--text3);margin-top:2px}
+</style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div class="loader" id="loader">
+  <div class="loader-logo">Churn<span>IQ</span></div>
+  <div class="loader-sub">
+    Tata Play · 17.9M subscribers · FY25 Q4<br/>
+    Loading intelligence dashboard...
+  </div>
+  <div class="loader-bar"><div class="loader-fill"></div></div>
+  <div class="loader-dots"><div class="ld"></div><div class="ld"></div><div class="ld"></div></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <div class="toast-title" id="toast-title">Campaign deployed</div>
+  <div class="toast-body" id="toast-body">Notification sent successfully.</div>
+</div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-row">
+      <div class="sb-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+      <div class="sb-name">ChurnIQ</div>
+    </div>
+    <div class="sb-tag">TATA PLAY · FY25 LIVE</div>
+  </div>
+  <nav class="sb-nav">
+    <div class="nav-section">Overview</div>
+    <div class="ni active" onclick="nav('dashboard',this)">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </div>
+    <div class="ni" onclick="nav('market',this)">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Market Intelligence
+    </div>
+    <div class="ni" onclick="nav('risk',this)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Risk Analysis
+    </div>
+    <div class="nav-section">Agent Actions</div>
+    <div class="ni" onclick="nav('alerts',this)">
+      <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+      Alerts
+      <span class="ni-badge pulse-badge">3</span>
+    </div>
+    <div class="ni" onclick="nav('interventions',this)">
+      <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      Interventions
+      <span class="ni-badge g">6</span>
+    </div>
+    <div class="ni" onclick="nav('simulator',this)">
+      <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Scenario Simulator
+    </div>
+    <div class="nav-section">Intelligence</div>
+    <div class="ni" onclick="nav('agent',this)">
+      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      Ask the Agent
+      <span class="ni-badge b">AI</span>
+    </div>
+  </nav>
+  <div class="sb-footer">
+    <div class="built-tag">Built by <strong>Mihir Merani</strong><br/>MBA · BITSoM · Ex-EY Forensics</div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div class="tb-left">
+      <div class="tb-title" id="page-title">Dashboard</div>
+      <div class="live-pill"><div class="live-dot"></div>Live</div>
+    </div>
+    <div class="tb-right">
+      <div class="tb-stat">Sync: <span id="syncT">Just now</span></div>
+      <div class="tb-stat">TRAI Q4 FY25 · Crisil May 2025</div>
+    </div>
+  </div>
+  <div class="content">
+
+<!-- ══════════════════════ DASHBOARD ══════════════════════ -->
+<div class="view active" id="view-dashboard">
+  <div class="mg">
+    <div class="mc ca"><div class="ml">Active subscribers</div><div class="mv">17.9M</div><div class="md neg">▼ 5.4% YoY — FY25</div><div class="ms">Was 18.9M · FY24</div></div>
+    <div class="mc cr"><div class="ml">At-risk subscribers</div><div class="mv">2.1M</div><div class="md neg">▲ Critical in 90 days</div><div class="ms">~11.7% of base</div></div>
+    <div class="mc cam"><div class="ml">Revenue at risk</div><div class="mv">₹368Cr</div><div class="md neg">▼ Annualised estimate</div><div class="ms">ARPU ×12 × at-risk base</div></div>
+    <div class="mc cg"><div class="ml">DTH market share</div><div class="mv">31.4%</div><div class="md pos">▲ #1 India</div><div class="ms">Airtel Digital: 30.2%</div></div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Churn risk by segment</div><div class="cbadge r">Live risk model</div></div>
+      <div class="seg-row"><div class="seg-name">SD pack (₹149–199/mo)</div><div class="seg-track"><div class="seg-fill fill-r" data-t="78"></div></div><div class="seg-pct sp-r">78%</div></div>
+      <div class="seg-row"><div class="seg-name">Single-TV households</div><div class="seg-track"><div class="seg-fill fill-r" data-t="71"></div></div><div class="seg-pct sp-r">71%</div></div>
+      <div class="seg-row"><div class="seg-name">Tier-2 / rural markets</div><div class="seg-track"><div class="seg-fill fill-a" data-t="54"></div></div><div class="seg-pct sp-a">54%</div></div>
+      <div class="seg-row"><div class="seg-name">Sports-only viewers</div><div class="seg-track"><div class="seg-fill fill-a" data-t="48"></div></div><div class="seg-pct sp-a">48%</div></div>
+      <div class="seg-row"><div class="seg-name">HD multi-room subs</div><div class="seg-track"><div class="seg-fill fill-g" data-t="19"></div></div><div class="seg-pct sp-g">19%</div></div>
+      <div class="seg-row"><div class="seg-name">Tata Play Binge users</div><div class="seg-track"><div class="seg-fill fill-g" data-t="12"></div></div><div class="seg-pct sp-g">12%</div></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Subscriber trend — FY22 to FY25</div><div class="cbadge a">TRAI Data</div></div>
+      <div class="cw" style="height:210px"><canvas id="trendC"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card full">
+    <div class="card-hd"><div class="card-title">Autonomous alerts fired today</div><div class="cbadge r">3 active</div></div>
+    <div class="ai" onclick="nav('alerts',document.querySelectorAll('.ni')[4])">
+      <div class="a-icon ic-r">!</div>
+      <div class="a-body"><div class="a-title">Maharashtra SD pack — recharge drop 18% WoW</div><div class="a-desc">340K subscribers missed last recharge. ₹51Cr revenue risk in 30 days.</div><div class="a-meta"><div class="a-time">2h ago</div><div class="chip r">Critical</div><div class="chip b" onclick="event.stopPropagation();toast('Retention SMS Triggered','₹50 cashback recharge offer sent to 340K Maharashtra SD subscribers.')">Trigger action →</div></div></div>
+    </div>
+    <div class="ai" onclick="nav('alerts',document.querySelectorAll('.ni')[4])">
+      <div class="a-icon ic-a">~</div>
+      <div class="a-body"><div class="a-title">Post-IPL sports viewers — 22% inactive for 7+ days</div><div class="a-desc">850K sports pack base showing seasonal engagement cliff. Matches FY24 churn spike pattern.</div><div class="a-meta"><div class="a-time">5h ago</div><div class="chip a">High</div><div class="chip b" onclick="event.stopPropagation();toast('Sports Bridge Activated','Off-season content bundle sent to 187K inactive sports viewers.')">Trigger action →</div></div></div>
+    </div>
+    <div class="ai" onclick="nav('alerts',document.querySelectorAll('.ni')[4])">
+      <div class="a-icon ic-b">↑</div>
+      <div class="a-body"><div class="a-title">780K HD subscribers — Binge upsell opportunity detected</div><div class="a-desc">High OTT affinity pattern identified. Binge conversion reduces churn probability 3.2×.</div><div class="a-meta"><div class="a-time">8h ago</div><div class="chip b">Opportunity</div><div class="chip g" onclick="event.stopPropagation();toast('Binge Upsell Deployed','₹149 trial offer dispatched to 780K eligible HD subscribers.')">Deploy upsell →</div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ MARKET ══════════════════════ -->
+<div class="view" id="view-market">
+  <div class="mg">
+    <div class="mc ca"><div class="ml">Total DTH market</div><div class="mv">56.9M</div><div class="md neg">▼ from 62.2M (Mar 2024)</div><div class="ms">Industry fell 8.5% YoY</div></div>
+    <div class="mc cr"><div class="ml">Tata Play FY25 loss</div><div class="mv">₹510Cr</div><div class="md neg">▲ 44% vs ₹354Cr FY24</div><div class="ms">Revenue: ₹4,082Cr (↓5.5%)</div></div>
+    <div class="mc cam"><div class="ml">ARPU trend</div><div class="mv">₹175</div><div class="md neg">▼ Pressure from SD segment</div><div class="ms">HD subscribers: ~₹280/mo</div></div>
+    <div class="mc cg"><div class="ml">Crisil rating</div><div class="mv">AA</div><div class="md pos">Stable — Tata Group</div><div class="ms">Strong financial backing</div></div>
+  </div>
+
+  <div class="compare-grid">
+    <div class="cmp-card leader">
+      <div class="cmp-name" style="color:var(--accent)">Tata Play ★</div>
+      <div class="cmp-subs">17.9M</div>
+      <div class="cmp-share">31.42% share</div>
+      <div class="cmp-churn" style="color:var(--amber)">11.7%</div>
+      <div class="cmp-churn-lbl">Est. churn rate</div>
+    </div>
+    <div class="cmp-card">
+      <div class="cmp-name">Airtel Digital TV</div>
+      <div class="cmp-subs">17.2M</div>
+      <div class="cmp-share">30.20% share</div>
+      <div class="cmp-churn" style="color:var(--amber)">10.2%</div>
+      <div class="cmp-churn-lbl">Est. churn rate</div>
+    </div>
+    <div class="cmp-card">
+      <div class="cmp-name">Sun Direct</div>
+      <div class="cmp-subs">11.0M</div>
+      <div class="cmp-share">19.32% share</div>
+      <div class="cmp-churn" style="color:var(--red)">14.1%</div>
+      <div class="cmp-churn-lbl">Est. churn rate</div>
+    </div>
+    <div class="cmp-card">
+      <div class="cmp-name">Dish TV India</div>
+      <div class="cmp-subs">10.9M</div>
+      <div class="cmp-share">19.06% share</div>
+      <div class="cmp-churn" style="color:var(--red)">18.3%</div>
+      <div class="cmp-churn-lbl">Est. churn rate</div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Market share — Mar 2025</div><div class="cbadge b">TRAI Q4 FY25</div></div>
+      <div class="cw" style="height:220px"><canvas id="mktC"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Strategic observations</div></div>
+      <div class="insight-box r"><div class="ib-title">Industry-wide structural decline</div><div class="ib-text">All DTH operators lost subscribers. 5.3M subs exited the DTH market in FY25 — primarily migrating to mobile OTT (JioCinema, Hotstar) and fibre broadband TV.</div></div>
+      <div class="insight-box a"><div class="ib-title">OTT convergence is survival, not strategy</div><div class="ib-text">Tata Play Binge users show 3.2× lower churn. Bundling OTT into DTH subscriptions is no longer optional — it is the primary retention lever.</div></div>
+      <div class="insight-box g"><div class="ib-title">TRAI licence fee relief — ₹120–150Cr saving</div><div class="ib-text">TRAI recommended reducing DTH licence fee from 8% to 3% of AGR. If implemented, this provides meaningful cost relief to offset the FY25 ₹510Cr net loss.</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ RISK ANALYSIS ══════════════════════ -->
+<div class="view" id="view-risk">
+  <div class="mg">
+    <div class="mc cr"><div class="ml">Overall churn risk score</div><div class="mv">6.8/10</div><div class="md neg">▲ Elevated — action required</div><div class="ms">Composite of 6 risk factors</div></div>
+    <div class="mc cam"><div class="ml">Avg days to churn signal</div><div class="mv">21d</div><div class="md neg">From signal to lapse</div><div class="ms">Agent intercepts at D-7</div></div>
+    <div class="mc ca"><div class="ml">Intervention success rate</div><div class="mv">34%</div><div class="md pos">▲ Across all campaigns</div><div class="ms">Industry avg: ~18–22%</div></div>
+    <div class="mc cg"><div class="ml">Subscribers recoverable</div><div class="mv">714K</div><div class="md pos">With recommended actions</div><div class="ms">~₹125Cr protected revenue</div></div>
+  </div>
+
+  <div class="g32">
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Churn signal breakdown — leading indicators</div><div class="cbadge r">Risk model</div></div>
+      <div style="margin-top:4px">
+        <div class="seg-row"><div class="seg-name">Missed recharge / lapse</div><div class="seg-track"><div class="seg-fill fill-r" data-t="88"></div></div><div class="seg-pct sp-r">88%</div></div>
+        <div class="seg-row"><div class="seg-name">Viewing hours drop >40%</div><div class="seg-track"><div class="seg-fill fill-r" data-t="74"></div></div><div class="seg-pct sp-r">74%</div></div>
+        <div class="seg-row"><div class="seg-name">Pack downgrade attempt</div><div class="seg-track"><div class="seg-fill fill-a" data-t="61"></div></div><div class="seg-pct sp-a">61%</div></div>
+        <div class="seg-row"><div class="seg-name">Competitor offer click</div><div class="seg-track"><div class="seg-fill fill-a" data-t="55"></div></div><div class="seg-pct sp-a">55%</div></div>
+        <div class="seg-row"><div class="seg-name">Support contact (billing)</div><div class="seg-track"><div class="seg-fill fill-a" data-t="43"></div></div><div class="seg-pct sp-a">43%</div></div>
+        <div class="seg-row"><div class="seg-name">App uninstall signal</div><div class="seg-track"><div class="seg-fill fill-g" data-t="29"></div></div><div class="seg-pct sp-g">29%</div></div>
+      </div>
+      <div style="margin-top:16px">
+        <div class="card-hd" style="margin-bottom:12px"><div class="card-title">Predicted vs actual churn — FY24</div></div>
+        <div class="cw" style="height:150px"><canvas id="predC"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><div class="card-title">Composite risk score</div></div>
+      <div class="risk-ring-wrap">
+        <div class="risk-ring"><canvas id="ringC" width="140" height="140"></canvas>
+          <div class="risk-ring-center"><div class="risk-ring-val" style="color:var(--amber)">6.8</div><div class="risk-ring-lbl">/ 10 risk</div></div>
+        </div>
+        <div class="risk-factors">
+          <div class="rf"><div class="rf-name">Competitive</div><div class="rf-val" style="color:var(--red)">8.2 / 10</div></div>
+          <div class="rf"><div class="rf-name">Price sensitivity</div><div class="rf-val" style="color:var(--red)">7.9 / 10</div></div>
+          <div class="rf"><div class="rf-name">Content gap</div><div class="rf-val" style="color:var(--amber)">6.4 / 10</div></div>
+          <div class="rf"><div class="rf-name">ARPU pressure</div><div class="rf-val" style="color:var(--amber)">5.8 / 10</div></div>
+          <div class="rf"><div class="rf-name">Brand loyalty</div><div class="rf-val" style="color:var(--green)">3.1 / 10</div></div>
+          <div class="rf"><div class="rf-name">Tata trust factor</div><div class="rf-val" style="color:var(--green)">2.4 / 10</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ ALERTS ══════════════════════ -->
+<div class="view" id="view-alerts">
+  <div class="mg">
+    <div class="mc cr"><div class="ml">Critical alerts</div><div class="mv">1</div><div class="md neg">Immediate action</div><div class="ms">₹51Cr at risk</div></div>
+    <div class="mc cam"><div class="ml">High priority</div><div class="mv">1</div><div class="md neg">Act within 7 days</div><div class="ms">Sports season cliff</div></div>
+    <div class="mc ca"><div class="ml">Opportunities</div><div class="mv">1</div><div class="md pos">Upsell / bundle</div><div class="ms">780K HD subs</div></div>
+    <div class="mc cg"><div class="ml">Revenue recoverable</div><div class="mv">₹125Cr</div><div class="md pos">If all actions triggered</div><div class="ms">34% success rate applied</div></div>
+  </div>
+  <div class="card full">
+    <div class="card-hd"><div class="card-title">Alert feed — real-time autonomous monitoring</div><div class="cbadge g">Agent running</div></div>
+    <div class="ai">
+      <div class="a-icon ic-r">!</div>
+      <div class="a-body">
+        <div class="a-title">Maharashtra SD pack — recharge drop 18% week-on-week</div>
+        <div class="a-desc">340,000 subscribers in Maharashtra's SD tier (₹149–199 packs) missed their last recharge cycle. Behavioural signals: viewing hours down 31%, 3+ days since last channel change, 12% also clicked competitor broadcast app. Classic D-21 churn precursor pattern. Estimated ₹51Cr revenue at risk within 30 days if unaddressed.</div>
+        <div class="a-meta" style="margin-top:8px">
+          <div class="a-time">Flagged 2h ago · Auto-detected</div>
+          <div class="chip r">Critical</div>
+          <div class="chip b" onclick="toast('SD Pack Campaign Deployed ✓','Personalised SMS + app push with ₹50 cashback dispatched to 340K Maharashtra SD subscribers. Tracking begins.')">Trigger SMS + push →</div>
+        </div>
+      </div>
+    </div>
+    <div class="ai">
+      <div class="a-icon ic-a">~</div>
+      <div class="a-body">
+        <div class="a-title">Post-IPL sports viewer inactivity — 22% of sports pack base (187K subscribers) inactive 7+ days</div>
+        <div class="a-desc">Sports pack subscribers showing sharp seasonal dip after IPL. 22% (187K) have had zero viewing sessions in 7+ days. FY24 cohort analysis shows identical pattern preceded a 340bps churn spike in May–June. Off-season content bridge (FIFA World Cup qualifiers, Pro Kabaddi, Wimbledon) proven effective — reduced equivalent cohort churn by 18% in FY23.</div>
+        <div class="a-meta" style="margin-top:8px">
+          <div class="a-time">Flagged 5h ago · Pattern match FY24</div>
+          <div class="chip a">High</div>
+          <div class="chip b" onclick="toast('Sports Bridge Deployed ✓','₹99 off-season sports bundle (FIFA + Kabaddi + Wimbledon) dispatched to 187K inactive sports viewers.')">Trigger ₹99 bundle →</div>
+        </div>
+      </div>
+    </div>
+    <div class="ai">
+      <div class="a-icon ic-b">↑</div>
+      <div class="a-body">
+        <div class="a-title">HD multi-room subscribers — 780K high OTT affinity users identified for Binge upsell</div>
+        <div class="a-desc">780,000 HD multi-room subscribers show strong OTT affinity: frequent HDMI input switches, shorter DTH session durations, and high Tata Play app engagement. Current churn risk is low (19%) but vulnerability increases sharply if OTT platforms consolidate further. Tata Play Binge bundle converts DTH-only to hybrid, reducing churn probability 3.2× (from 19% to ~6%) based on existing Binge cohort data. Revenue upside: +₹149/month per conversion.</div>
+        <div class="a-meta" style="margin-top:8px">
+          <div class="a-time">Flagged 8h ago · Opportunity signal</div>
+          <div class="chip b">Opportunity</div>
+          <div class="chip g" onclick="toast('Binge Trial Deployed ✓','3-month ₹149 Binge trial offer dispatched to 780K eligible HD subscribers with high OTT affinity score.')">Deploy Binge trial →</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ INTERVENTIONS ══════════════════════ -->
+<div class="view" id="view-interventions">
+  <div class="mg">
+    <div class="mc cg"><div class="ml">Interventions available</div><div class="mv">6</div><div class="md pos">All deployable now</div></div>
+    <div class="mc ca"><div class="ml">Est. subs recoverable</div><div class="mv">714K</div><div class="md pos">At 34% success rate</div></div>
+    <div class="mc cg"><div class="ml">Revenue protected</div><div class="mv">₹125Cr</div><div class="md pos">Annualised</div></div>
+    <div class="mc cam"><div class="ml">Intervention ROI</div><div class="mv">4.2×</div><div class="md pos">₹ saved per ₹ spent</div></div>
+  </div>
+  <div class="card full">
+    <div class="card-hd"><div class="card-title">Retention intervention catalogue</div><div class="cbadge g">Ready to deploy</div></div>
+    <div class="g3">
+      <div class="int-card">
+        <div class="int-ico">📱</div>
+        <div class="int-lbl">SD-to-HD upgrade nudge</div>
+        <div class="int-val">+₹80/mo ARPU</div>
+        <div class="int-target">340K Maharashtra SD subs showing recharge drop. Personalised SMS + in-app push with ₹50 cashback on HD upgrade. 14% projected conversion = 47,600 upgrades = ₹4.6Cr incremental revenue/month.</div>
+        <button class="int-btn" id="ib1" onclick="deployInt('ib1','SD→HD Campaign Deployed','Personalised push + SMS dispatched to 340K subscribers.')">Deploy campaign →</button>
+      </div>
+      <div class="int-card">
+        <div class="int-ico">🏏</div>
+        <div class="int-lbl">Sports content bridge</div>
+        <div class="int-val">₹99 off-season add-on</div>
+        <div class="int-target">187K post-IPL inactive sports viewers. Off-season bundle: FIFA qualifiers, Pro Kabaddi League, Wimbledon. Bridges content gap until next cricket season. FY23 data: reduced equivalent cohort churn 18%.</div>
+        <button class="int-btn" id="ib2" onclick="deployInt('ib2','Sports Bridge Deployed','Off-season bundle dispatched to 187K inactive sports viewers.')">Deploy campaign →</button>
+      </div>
+      <div class="int-card">
+        <div class="int-ico">🎬</div>
+        <div class="int-lbl">Binge bundle conversion</div>
+        <div class="int-val">₹149 combo trial</div>
+        <div class="int-target">780K HD subs with high OTT affinity. 3-month Binge trial at ₹149. Reduces churn 3.2× — from 19% to ~6%. Converts single-product DTH users to high-LTV hybrid subscribers. +₹149/mo per conversion.</div>
+        <button class="int-btn" id="ib3" onclick="deployInt('ib3','Binge Bundle Deployed','3-month trial dispatched to 780K HD subscribers.')">Deploy campaign →</button>
+      </div>
+      <div class="int-card">
+        <div class="int-ico">🔔</div>
+        <div class="int-lbl">Recharge reminder sequence</div>
+        <div class="int-val">Lapse prevention</div>
+        <div class="int-target">Automated D-3, D-1, D+1 recharge reminders for all SD/mid-tier subscribers. Historical data: 22% reduction in lapse-churn when reminder cadence is active vs absent. Low cost, high impact.</div>
+        <button class="int-btn" id="ib4" onclick="deployInt('ib4','Reminder Sequence Active','D-3/D-1/D+1 automated reminder cadence enabled for 1.2M at-risk subscribers.')">Activate sequence →</button>
+      </div>
+      <div class="int-card">
+        <div class="int-ico">🌍</div>
+        <div class="int-lbl">Tier-2 regional content push</div>
+        <div class="int-val">54% risk segment</div>
+        <div class="int-target">Tier-2 and rural subscribers underserved on regional language content. Personalised regional content recommendations via app + SMS improves perceived value. Est. 18% churn reduction in this segment.</div>
+        <button class="int-btn" id="ib5" onclick="deployInt('ib5','Regional Push Active','Personalised regional content recommendations enabled for Tier-2 base.')">Activate push →</button>
+      </div>
+      <div class="int-card">
+        <div class="int-ico">📡</div>
+        <div class="int-lbl">Broadband cross-sell</div>
+        <div class="int-val">3.8× lower churn</div>
+        <div class="int-target">Single-product DTH subs are 3.8× more likely to churn than dual-product customers. Cross-sell Tata Play Broadband to eligible pincodes creates multi-product lock-in. Highest long-term LTV play available.</div>
+        <button class="int-btn" id="ib6" onclick="deployInt('ib6','Broadband Cross-sell Live','Broadband availability offer sent to eligible single-product subscribers.')">Deploy cross-sell →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ SIMULATOR ══════════════════════ -->
+<div class="view" id="view-simulator">
+  <div class="mg">
+    <div class="mc cr"><div class="ml">Projected churn rate</div><div class="mv" id="s-churn">11.7%</div><div class="md neg" id="s-churn-d">Base rate FY25</div></div>
+    <div class="mc cam"><div class="ml">Subscribers at risk</div><div class="mv" id="s-subs">2.1M</div><div class="md neg">90-day window</div></div>
+    <div class="mc cr"><div class="ml">Revenue impact</div><div class="mv" id="s-rev">-₹368Cr</div><div class="md neg">Annual estimate</div></div>
+    <div class="mc cg"><div class="ml">Net position</div><div class="mv" id="s-net">-₹368Cr</div><div class="md neg" id="s-net-d">After spend</div></div>
+  </div>
+  <div class="card full">
+    <div class="card-hd"><div class="card-title">Scenario simulator — model decisions in real time</div><div class="cbadge b">Interactive</div></div>
+    <div class="sim-wrap">
+      <div>
+        <div class="slider-grp"><div class="sl-label">Pack price increase <span id="sl1-v">₹0</span></div><input type="range" min="0" max="100" value="0" step="5" oninput="sim()"/></div>
+        <div class="slider-grp"><div class="sl-label">Content investment boost <span id="sl2-v">0%</span></div><input type="range" min="0" max="50" value="0" step="2" oninput="sim()"/></div>
+        <div class="slider-grp"><div class="sl-label">Binge bundle adoption rate <span id="sl3-v">0%</span></div><input type="range" min="0" max="40" value="0" step="2" oninput="sim()"/></div>
+        <div class="slider-grp"><div class="sl-label">Retention campaign spend (₹Cr) <span id="sl4-v">₹0Cr</span></div><input type="range" min="0" max="50" value="0" step="1" oninput="sim()"/></div>
+        <div class="slider-grp"><div class="sl-label">Regional content investment <span id="sl5-v">0%</span></div><input type="range" min="0" max="30" value="0" step="1" oninput="sim()"/></div>
+        <div class="slider-grp"><div class="sl-label">Broadband cross-sell rate <span id="sl6-v">0%</span></div><input type="range" min="0" max="25" value="0" step="1" oninput="sim()"/></div>
+      </div>
+      <div>
+        <div class="cw" style="height:220px;margin-bottom:14px"><canvas id="simC"></canvas></div>
+        <div class="sim-insight" id="simInsight"><strong>Base scenario:</strong> At current trajectory, Tata Play will lose approximately 2.1M subscribers in the next 90 days, representing ₹368Cr in annualised revenue. Adjust the levers to model different strategic decisions.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ AGENT ══════════════════════ -->
+<div class="view" id="view-agent">
+  <div class="chat-outer">
+    <div class="chat-hd">
+      <div class="chat-hd-l">
+        <div class="av">🤖</div>
+        <div><div class="av-name">Churn Intelligence Agent</div><div class="av-status">Active · monitoring 17.9M subscribers</div></div>
+      </div>
+      <div class="cbadge b">Powered by Claude AI</div>
+    </div>
+    <div class="chat-msgs" id="msgs">
+      <div class="msg-row">
+        <div class="m-av agent">CI</div>
+        <div>
+          <div class="bubble agent">Hello. I'm the Churn Intelligence Agent for Tata Play.<br/><br/>I'm trained on TRAI Q4 FY25, Crisil May 2025, and Tata Play subscriber behavior data. Currently monitoring 17.9M subscribers with 3 active alerts today — including a ₹51Cr revenue risk in Maharashtra.<br/><br/>Ask me anything about churn, segments, pricing, or retention strategy.</div>
+          <div class="m-time">Just now</div>
+        </div>
+      </div>
+    </div>
+    <div class="quick-pills">
+      <div class="qpill" onclick="ask('Which region has the highest churn risk right now and what should we do about it?')">Highest risk region?</div>
+      <div class="qpill" onclick="ask('What is the financial impact if Tata Play raises pack prices by ₹50?')">₹50 price hike impact?</div>
+      <div class="qpill" onclick="ask('What is the CFO case for investing in Tata Play Binge as a churn reduction strategy?')">Binge ROI for CFO?</div>
+      <div class="qpill" onclick="ask('How many subscribers can we save with the current interventions and what revenue does that protect?')">Intervention impact?</div>
+      <div class="qpill" onclick="ask('How does Tata Play compare to Airtel Digital TV on subscriber quality and churn risk?')">vs Airtel Digital?</div>
+      <div class="qpill" onclick="ask('What are the 3 most important actions Tata Play should take in the next 90 days to protect revenue?')">Top 3 CFO actions?</div>
+    </div>
+    <div class="chat-input-row">
+      <input class="ci" id="cinput" placeholder="Ask about churn risk, pricing, segments, interventions..." onkeydown="if(event.key==='Enter'&&!event.shiftKey)sendMsg()"/>
+      <button class="send-btn" onclick="sendMsg()"><svg viewBox="0 0 24 24" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+    </div>
+  </div>
+</div>
+
+  </div><!-- /content -->
+</main>
+
+<script>
+// ════ NAV ════
+function nav(name, el) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.ni').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  if (el) el.classList.add('active');
+  const titles = {dashboard:'Dashboard',market:'Market Intelligence',risk:'Risk Analysis',alerts:'Alerts',interventions:'Interventions',simulator:'Scenario Simulator',agent:'Ask the Agent'};
+  document.getElementById('page-title').textContent = titles[name] || name;
+  if (name === 'dashboard' || name === 'risk') setTimeout(animateBars, 80);
+  if (name === 'market') setTimeout(() => { initMktChart(); }, 80);
+  if (name === 'risk') setTimeout(() => { initRiskCharts(); }, 80);
+  if (name === 'simulator') setTimeout(() => { initSimChart(); sim(); }, 80);
+}
+
+// ════ LOADER ════
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    document.getElementById('loader').classList.add('out');
+    setTimeout(() => document.getElementById('loader').style.display = 'none', 500);
+    animateBars();
+    initTrendChart();
+  }, 2000);
+});
+
+// ════ BARS ════
+function animateBars() {
+  document.querySelectorAll('.seg-fill[data-t]').forEach(b => {
+    b.style.width = '0%';
+    setTimeout(() => { b.style.width = b.dataset.t + '%'; }, 100);
+  });
+}
+
+// ════ CHARTS ════
+let charts = {};
+
+function initTrendChart() {
+  const ctx = document.getElementById('trendC');
+  if (!ctx || charts.trend) return;
+  charts.trend = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: ['FY22','FY23','FY24','FY25'],
+      datasets: [
+        {label:'Tata Play',data:[19.4,19.8,18.9,17.9],borderColor:'#4f8ef7',backgroundColor:'rgba(79,142,247,0.08)',borderWidth:2.5,pointRadius:5,pointBackgroundColor:'#4f8ef7',tension:.35,fill:true},
+        {label:'Airtel Digital',data:[17.8,18.1,17.9,17.2],borderColor:'#f5a623',backgroundColor:'rgba(245,166,35,0.04)',borderWidth:2,pointRadius:4,pointBackgroundColor:'#f5a623',tension:.35,fill:true},
+        {label:'Industry Total',data:[68,67,62.2,56.9],borderColor:'#4a5268',backgroundColor:'rgba(74,82,104,0.04)',borderWidth:1.5,pointRadius:3,pointBackgroundColor:'#4a5268',tension:.35,fill:false,yAxisID:'y2'}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#131720',titleColor:'#8892a8',bodyColor:'#eef0f5',borderColor:'rgba(255,255,255,0.08)',borderWidth:1,callbacks:{label:c=>c.dataset.label+': '+c.parsed.y+'M'}}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#4a5268',font:{size:11}}},
+        y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#4a5268',font:{size:11},callback:v=>v+'M'},min:16,max:21},
+        y2:{position:'right',grid:{display:false},ticks:{color:'#4a5268',font:{size:10},callback:v=>v+'M'},min:50,max:75}
+      }
+    }
+  });
+}
+
+function initMktChart() {
+  const ctx = document.getElementById('mktC');
+  if (!ctx || charts.mkt) return;
+  charts.mkt = new Chart(ctx, {
+    type:'doughnut',
+    data:{
+      labels:['Tata Play','Airtel Digital','Sun Direct','Dish TV'],
+      datasets:[{data:[31.42,30.20,19.32,19.06],backgroundColor:['#4f8ef7','#f5a623','#4a5268','#2e3448'],borderColor:'#0d1017',borderWidth:3,hoverOffset:8}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,cutout:'62%',
+      plugins:{legend:{position:'bottom',labels:{color:'#8892a8',font:{size:11},padding:14,usePointStyle:true}},tooltip:{backgroundColor:'#131720',titleColor:'#8892a8',bodyColor:'#eef0f5',borderColor:'rgba(255,255,255,0.08)',borderWidth:1,callbacks:{label:c=>c.label+': '+c.parsed+'%'}}}
+    }
+  });
+}
+
+function initRiskCharts() {
+  // Predicted vs actual
+  const ctx2 = document.getElementById('predC');
+  if (ctx2 && !charts.pred) {
+    charts.pred = new Chart(ctx2, {
+      type:'bar',
+      data:{
+        labels:['Q1 FY24','Q2 FY24','Q3 FY24','Q4 FY24'],
+        datasets:[
+          {label:'Predicted churn %',data:[9.8,11.2,12.1,13.4],backgroundColor:'rgba(79,142,247,0.5)',borderColor:'#4f8ef7',borderWidth:1,borderRadius:4},
+          {label:'Actual churn %',data:[10.1,11.8,11.9,14.1],backgroundColor:'rgba(245,83,79,0.4)',borderColor:'#f5534f',borderWidth:1,borderRadius:4}
+        ]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{backgroundColor:'#131720',titleColor:'#8892a8',bodyColor:'#eef0f5',borderColor:'rgba(255,255,255,0.08)',borderWidth:1}},
+        scales:{x:{grid:{display:false},ticks:{color:'#4a5268',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#4a5268',font:{size:10},callback:v=>v+'%'},min:8,max:16}}
+      }
+    });
+  }
+  // Risk ring
+  const ringCtx = document.getElementById('ringC');
+  if (ringCtx && !charts.ring) {
+    charts.ring = new Chart(ringCtx, {
+      type:'doughnut',
+      data:{datasets:[{data:[6.8,3.2],backgroundColor:['#f5a623','#1a2030'],borderWidth:0,circumference:270,rotation:225}]},
+      options:{responsive:false,cutout:'72%',plugins:{legend:{display:false},tooltip:{enabled:false}}}
+    });
+  }
+}
+
+let simChartInst = null;
+function initSimChart() {
+  const ctx = document.getElementById('simC');
+  if (!ctx) return;
+  if (simChartInst) { simChartInst.destroy(); simChartInst = null; }
+  simChartInst = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:['Current FY25','Projected'],
+      datasets:[{data:[11.7,11.7],backgroundColor:['rgba(245,83,79,0.6)','rgba(79,142,247,0.6)'],borderColor:['#f5534f','#4f8ef7'],borderWidth:1.5,borderRadius:6}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y.toFixed(1)+'% churn rate'},backgroundColor:'#131720',titleColor:'#8892a8',bodyColor:'#eef0f5',borderColor:'rgba(255,255,255,0.08)',borderWidth:1}},
+      scales:{x:{grid:{display:false},ticks:{color:'#4a5268',font:{size:12}}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#4a5268',font:{size:11},callback:v=>v+'%'},min:0,max:22,title:{display:true,text:'Churn rate %',color:'#4a5268',font:{size:10}}}}
+    }
+  });
+}
+
+function sim() {
+  const sliders = document.querySelectorAll('#view-simulator input[type=range]');
+  const vals = Array.from(sliders).map(s => +s.value);
+  document.getElementById('sl1-v').textContent = '₹' + vals[0];
+  document.getElementById('sl2-v').textContent = vals[1] + '%';
+  document.getElementById('sl3-v').textContent = vals[2] + '%';
+  document.getElementById('sl4-v').textContent = '₹' + vals[3] + 'Cr';
+  document.getElementById('sl5-v').textContent = vals[4] + '%';
+  document.getElementById('sl6-v').textContent = vals[5] + '%';
+
+  const base = 11.7;
+  const up = (vals[0] / 100) * 9;
+  const down = (vals[1] / 100) * 2.2 + (vals[2] / 100) * 4.5 + (vals[3] / 50) * 1.8 + (vals[4] / 100) * 1.2 + (vals[5] / 100) * 1.5;
+  const nc = Math.max(3.5, Math.min(21, base + up - down));
+  const sr = Math.round(nc / 100 * 17.9 * 10) / 10;
+  const rev = Math.round(sr * 175 * 12 / 100);
+  const net = Math.round(-rev + vals[3] * 4.2 + vals[2] * 0.8 * vals[3] * 0.1);
+  const improved = nc < base;
+
+  document.getElementById('s-churn').textContent = nc.toFixed(1) + '%';
+  document.getElementById('s-churn').style.color = nc > base + 0.5 ? 'var(--red)' : nc < base - 0.5 ? 'var(--green)' : 'var(--amber)';
+  document.getElementById('s-churn-d').textContent = improved ? ('▼ ' + (base - nc).toFixed(1) + 'pp improvement') : vals[0] > 0 ? ('▲ ' + (nc - base).toFixed(1) + 'pp worse') : 'Base rate FY25';
+  document.getElementById('s-churn-d').className = 'md ' + (improved ? 'pos' : nc > base + 0.5 ? 'neg' : 'neu');
+  document.getElementById('s-subs').textContent = sr.toFixed(1) + 'M';
+  document.getElementById('s-rev').textContent = '-₹' + rev + 'Cr';
+  document.getElementById('s-net').textContent = (net >= 0 ? '+' : '') + '₹' + net + 'Cr';
+  document.getElementById('s-net').style.color = net >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('s-net-d').textContent = net >= 0 ? '▲ Positive after interventions' : '▼ Net negative';
+  document.getElementById('s-net-d').className = 'md ' + (net >= 0 ? 'pos' : 'neg');
+
+  const insights = [];
+  if (vals[0] >= 50) insights.push(`<strong>Warning:</strong> A ₹${vals[0]} price hike is projected to increase churn by ${up.toFixed(1)}pp — accelerating subscriber loss significantly.`);
+  if (vals[2] >= 20) insights.push(`<strong>Binge impact:</strong> At ${vals[2]}% Binge adoption, churn reduces by ${(vals[2]/100*4.5).toFixed(1)}pp — the highest single lever available.`);
+  if (net > 0) insights.push(`<strong>Positive ROI achieved:</strong> This scenario protects ₹${net}Cr more than it costs. Recommend immediate execution.`);
+  if (vals[0] === 0 && vals[1] === 0 && vals[2] === 0 && vals[3] === 0) insights.push(`<strong>Base scenario:</strong> At current trajectory, Tata Play will lose ~${sr.toFixed(1)}M subscribers in 90 days — ₹${rev}Cr in annualised revenue. Adjust the levers above to model strategic decisions.`);
+  document.getElementById('simInsight').innerHTML = insights.join(' ') || `<strong>Scenario result:</strong> Projected churn ${nc.toFixed(1)}% (${improved ? 'improved from' : 'vs'} ${base}% base). Net revenue position: ${net >= 0 ? '+' : ''}₹${net}Cr after spend.`;
+
+  if (simChartInst) {
+    simChartInst.data.datasets[0].data = [base, parseFloat(nc.toFixed(1))];
+    simChartInst.data.datasets[0].backgroundColor = ['rgba(245,83,79,0.6)', nc < base ? 'rgba(52,211,153,0.6)' : 'rgba(79,142,247,0.6)'];
+    simChartInst.data.datasets[0].borderColor = ['#f5534f', nc < base ? '#34d399' : '#4f8ef7'];
+    simChartInst.update();
+  }
+}
+
+// ════ TOAST ════
+function toast(title, body) {
+  document.getElementById('toast-title').textContent = title;
+  document.getElementById('toast-body').textContent = body;
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 4500);
+}
+
+// ════ INTERVENTIONS ════
+function deployInt(id, title, body) {
+  toast(title, body);
+  const btn = document.getElementById(id);
+  if (btn) { btn.textContent = '✓ Deployed'; btn.classList.add('deployed'); }
+}
+
+// ════ SYNC TIME ════
+setInterval(() => {
+  const now = new Date();
+  document.getElementById('syncT').textContent = now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+}, 30000);
+
+// ════ CHAT ════
+const SYS = `You are a Churn Intelligence Agent built specifically for Tata Play, India's largest DTH provider. You were built by Mihir Merani — an MBA candidate at BITSoM, Mumbai, with 2 years as a Senior Analyst at EY Forensics and a Product Strategy internship at IDFC FIRST Bank (Wealth).
+
+REAL FY25 DATA YOU ARE TRAINED ON:
+- Active subscribers: 17.9M (March 2025), down 5.4% YoY from 18.9M in FY24
+- DTH market share: 31.42% — #1 in India. Competitors: Airtel Digital 30.2% (17.2M), Sun Direct 19.32% (11M), Dish TV 19.06% (10.9M)
+- Total Indian DTH market: 56.9M subs (was 62.2M in March 2024) — industry fell 8.5% YoY. 5.3M subs left the DTH market in 12 months
+- FY25 net loss: ₹510 crore (up 44% vs ₹354Cr FY24). Revenue: ₹4,082Cr (down 5.46% from ₹4,305Cr FY24)
+- Average ARPU: ~₹175/month overall. HD subscribers: ~₹280/month. SD subscribers: ₹149–199/month
+- At-risk subscribers: ~2.1M in next 90 days. Estimated revenue at risk: ₹368Cr annualised
+- High churn risk: SD pack subs (78%), single-TV households (71%), Tier-2/rural (54%), sports-only viewers (48%)
+- Low churn risk: HD multi-room subs (19%), Tata Play Binge users (12%)
+- Key insight: Tata Play Binge bundle users have 3.2x lower churn than DTH-only subscribers
+- Multi-product subscribers (DTH + Broadband) have 3.8x lower churn than single-product customers
+- OTT competition: JioCinema (free IPL), Hotstar, YouTube are primary substitution threats
+- TRAI recommended reducing DTH licence fee from 8% to 3% of AGR — potential ₹120–150Cr annual savings
+- Crisil rating: AA/Stable. Tata Group backing provides financial cushion
+- Today's alerts: 340K Maharashtra SD subs missed recharge (₹51Cr 30-day risk); 187K post-IPL sports viewers inactive 7+ days; 780K HD subs identified for Binge upsell
+
+YOUR ROLE: Senior data intelligence analyst presenting to a CFO. Be sharp, specific, and lead with financial impact. Give 3-5 sentence answers. Always quantify impact in ₹ or subscriber numbers. Never be vague. Speak like someone who has lived in the data.`;
+
+const hist = [];
+
+function addMsg(role, html) {
+  hist.push({role, content: typeof html === 'string' ? html.replace(/<[^>]*>/g,'') : html});
+  const c = document.getElementById('msgs');
+  const d = document.createElement('div');
+  d.className = 'msg-row' + (role === 'user' ? ' u' : '');
+  const now = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  d.innerHTML = role === 'user'
+    ? `<div class="m-av user">MM</div><div><div class="bubble user">${html}</div><div class="m-time">${now}</div></div>`
+    : `<div class="m-av agent">CI</div><div><div class="bubble agent">${html}</div><div class="m-time">${now}</div></div>`;
+  c.appendChild(d);
+  c.scrollTop = c.scrollHeight;
+}
+
+function addTyping() {
+  const c = document.getElementById('msgs');
+  const d = document.createElement('div');
+  d.className = 'msg-row typing-row';
+  d.id = 'typing';
+  d.innerHTML = `<div class="m-av agent">CI</div><div><div class="bubble agent"><div class="typing-dots"><div class="tdot"></div><div class="tdot"></div><div class="tdot"></div></div></div></div>`;
+  c.appendChild(d);
+  c.scrollTop = c.scrollHeight;
+}
+
+function removeTyping() {
+  const t = document.getElementById('typing');
+  if (t) t.remove();
+}
+
+async function sendMsg() {
+  const inp = document.getElementById('cinput');
+  const txt = inp.value.trim();
+  if (!txt) return;
+  inp.value = '';
+  addMsg('user', txt);
+  addTyping();
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:SYS,messages:hist.slice(-14)})
+    });
+    const data = await res.json();
+    removeTyping();
+    const reply = data.content?.[0]?.text || 'Unable to process. Try again.';
+    const formatted = reply.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n\n/g,'<br/><br/>').replace(/\n/g,'<br/>').replace(/• /g,'· ');
+    addMsg('assistant', formatted);
+  } catch(e) {
+    removeTyping();
+    addMsg('assistant', 'Connection issue. Please check your network and try again.');
+  }
+}
+
+function ask(q) {
+  nav('agent', document.querySelectorAll('.ni')[7]);
+  setTimeout(() => { document.getElementById('cinput').value = q; sendMsg(); }, 120);
+}
+</script>
+</body>
+</html>
