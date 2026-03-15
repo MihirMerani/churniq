@@ -914,17 +914,17 @@ function removeTyping() {
   if (t) t.remove();
 }
 
-let APIKEY = localStorage.getItem('ciq_key') || '';
+let APIKEY = localStorage.getItem('ciq_openai_key') || '';
 
 function ensureKey() {
   if (APIKEY) return true;
-  const k = prompt('Enter your Anthropic API key to activate the AI agent:\n(Get one free at console.anthropic.com → API Keys)');
+  const k = prompt('Enter your OpenAI API key to activate the AI agent:\n(platform.openai.com → API Keys)');
   if (k && k.startsWith('sk-')) {
     APIKEY = k.trim();
-    localStorage.setItem('ciq_key', APIKEY);
+    localStorage.setItem('ciq_openai_key', APIKEY);
     return true;
   }
-  addMsg('assistant', 'A valid Anthropic API key is needed to use the AI agent. Get one free at <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">console.anthropic.com</a> → API Keys, then paste it here when prompted.');
+  addMsg('assistant', 'A valid OpenAI API key is needed. Get yours at <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--accent)">platform.openai.com/api-keys</a>, then paste it when prompted.');
   return false;
 }
 
@@ -937,29 +937,34 @@ async function sendMsg() {
   addMsg('user', txt);
   addTyping();
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'x-api-key': APIKEY,
-        'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true'
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + APIKEY
       },
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:SYS,messages:hist.slice(-14)})
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        max_tokens: 1000,
+        messages: [
+          { role: 'system', content: SYS },
+          ...hist.slice(-14)
+        ]
+      })
     });
     const data = await res.json();
     removeTyping();
     if (data.error) {
-      if (data.error.type === 'authentication_error') {
+      if (data.error.code === 'invalid_api_key') {
         APIKEY = '';
-        localStorage.removeItem('ciq_key');
-        addMsg('assistant', 'API key invalid. Please refresh the page and enter a valid key from <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">console.anthropic.com</a>.');
+        localStorage.removeItem('ciq_openai_key');
+        addMsg('assistant', 'API key invalid. Refresh and enter a valid key from <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--accent)">platform.openai.com</a>.');
       } else {
         addMsg('assistant', 'API error: ' + data.error.message);
       }
       return;
     }
-    const reply = data.content?.[0]?.text || 'Unable to process. Try again.';
+    const reply = data.choices?.[0]?.message?.content || 'Unable to process. Try again.';
     const formatted = reply.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n\n/g,'<br/><br/>').replace(/\n/g,'<br/>').replace(/• /g,'· ');
     addMsg('assistant', formatted);
   } catch(e) {
