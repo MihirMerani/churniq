@@ -914,27 +914,57 @@ function removeTyping() {
   if (t) t.remove();
 }
 
+let APIKEY = localStorage.getItem('ciq_key') || '';
+
+function ensureKey() {
+  if (APIKEY) return true;
+  const k = prompt('Enter your Anthropic API key to activate the AI agent:\n(Get one free at console.anthropic.com → API Keys)');
+  if (k && k.startsWith('sk-')) {
+    APIKEY = k.trim();
+    localStorage.setItem('ciq_key', APIKEY);
+    return true;
+  }
+  addMsg('assistant', 'A valid Anthropic API key is needed to use the AI agent. Get one free at <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">console.anthropic.com</a> → API Keys, then paste it here when prompted.');
+  return false;
+}
+
 async function sendMsg() {
   const inp = document.getElementById('cinput');
   const txt = inp.value.trim();
   if (!txt) return;
+  if (!ensureKey()) return;
   inp.value = '';
   addMsg('user', txt);
   addTyping();
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': APIKEY,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
       body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:SYS,messages:hist.slice(-14)})
     });
     const data = await res.json();
     removeTyping();
+    if (data.error) {
+      if (data.error.type === 'authentication_error') {
+        APIKEY = '';
+        localStorage.removeItem('ciq_key');
+        addMsg('assistant', 'API key invalid. Please refresh the page and enter a valid key from <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">console.anthropic.com</a>.');
+      } else {
+        addMsg('assistant', 'API error: ' + data.error.message);
+      }
+      return;
+    }
     const reply = data.content?.[0]?.text || 'Unable to process. Try again.';
     const formatted = reply.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n\n/g,'<br/><br/>').replace(/\n/g,'<br/>').replace(/• /g,'· ');
     addMsg('assistant', formatted);
   } catch(e) {
     removeTyping();
-    addMsg('assistant', 'Connection issue. Please check your network and try again.');
+    addMsg('assistant', 'Network error — please check your connection and try again.');
   }
 }
 
